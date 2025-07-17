@@ -28,22 +28,24 @@ typedef enum
 } drive_state_t;
 
 typedef drive_err_t (*drive_init_cb_t)();
-typedef drive_err_t (*drive_set_pwm_cb_t)(uint8_t leftPwm, uint8_t rightPwm);
+typedef drive_err_t (*drive_set_pwm_cb_t)(uint16_t leftPwm, uint16_t rightPwm);
 typedef drive_err_t (*drive_set_stat_led_cb_t)(uint8_t stat);
 typedef uint32_t (*drive_get_time_ms_cb_t)();
+typedef int (*drive_uart_get_c_cb_t)();
 
 typedef struct
 {
    drive_state_t state;
-   uint16_t lastBlink_ms;
+   uint32_t lastBlink_ms;
 
-   drive_init_cb_t pInit;
-   drive_set_pwm_cb_t pSetPwm;
-   drive_set_stat_led_cb_t pSetLed;
-   drive_get_time_ms_cb_t pGetTimeMs;
+   drive_init_cb_t cbInit;
+   drive_set_pwm_cb_t cbSetPwm;
+   drive_set_stat_led_cb_t cbSetLed;
+   drive_get_time_ms_cb_t cbGetTimeMs;
+   drive_uart_get_c_cb_t cbUartGetC;
 } drive_t;
 
-drive_err_t drive_fsm(drive_t *pHandle);
+drive_err_t DriveFSM(drive_t *pHandle);
 
 #define DRIVE_RET_IF_NULL(ptr)                                                                                         \
    if (ptr == NULL)                                                                                                    \

@@ -1,4 +1,15 @@
 #include "drive.h"
+#include "settings.h"
+
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <errno.h>
+
+// ========= Private Variables =========
+
+uint8_t s_uartRx[DRIVE_BUF_LEN_RX] = {0};
+size_t s_rxPtr = 0;
 
 // ========= Private Definitions =========
 
@@ -6,11 +17,12 @@ static drive_err_t null_check(drive_t *pHandle);
 static void boot_task(drive_t *pHandle);
 static void run_task(drive_t *pHandle);
 static void error_task(drive_t *pHandle);
+static void reset_rx_buf();
 
 // ========= PUBLIC API =========
 
 drive_err_t
-drive_fsm(drive_t *pHandle)
+DriveFSM(drive_t *pHandle)
 {
    if (null_check(pHandle) != DRIVE_OK)
    {
@@ -47,13 +59,15 @@ drive_fsm(drive_t *pHandle)
  *   the handle (all callbacks populated and stuff)
  */
 
-drive_err_t null_check(drive_t *pHandle)
+drive_err_t
+null_check(drive_t *pHandle)
 {
    DRIVE_RET_IF_NULL(pHandle);
-   DRIVE_RET_IF_NULL(pHandle->pInit);
-   DRIVE_RET_IF_NULL(pHandle->pSetPwm);
-   DRIVE_RET_IF_NULL(pHandle->pSetLed);
-   DRIVE_RET_IF_NULL(pHandle->pGetTimeMs);
+   DRIVE_RET_IF_NULL(pHandle->cbInit);
+   DRIVE_RET_IF_NULL(pHandle->cbSetPwm);
+   DRIVE_RET_IF_NULL(pHandle->cbSetLed);
+   DRIVE_RET_IF_NULL(pHandle->cbGetTimeMs);
+   DRIVE_RET_IF_NULL(pHandle->cbUartGetC);
 
    return DRIVE_OK;
 }
@@ -61,27 +75,84 @@ drive_err_t null_check(drive_t *pHandle)
 void
 boot_task(drive_t *pHandle)
 {
-   if (pHandle->pInit() == DRIVE_ERR)
+   if (pHandle->cbInit() == DRIVE_ERR)
    {
       pHandle->state = DRIVE_ST_ERROR;
       return;
    }
+
+   pHandle->state = DRIVE_ST_RUN;
 }
 
 void
 run_task(drive_t *pHandle)
 {
-   uint8_t lpwm = 0;
-   uint8_t rpwm = 0;
+   uint16_t lpwm = 0;
+   uint16_t rpwm = 0;
+   uint8_t rx = 0;
+   char* lToken = NULL;
+   char* rToken = NULL;
+   int next = 0;
 
-   // TODO
-   // - Receive data from UART interface
+   // Make sure light is on to indicate to user firmware is running
+   pHandle->cbSetLed(1);
 
-   if (pHandle->pSetPwm(lpwm, rpwm) != DRIVE_OK)
+   next = pHandle->cbUartGetC();
+
+   if (next >= 0)
    {
-      pHandle->state = DRIVE_ST_ERROR;
-      return;
+      rx = (uint8_t)next;
+
+      if (s_rxPtr + 1 >= sizeof(s_uartRx))
+      {
+         reset_rx_buf();
+         return;
+      }
+
+      s_uartRx[s_rxPtr] = rx;
+      s_rxPtr++;
+
+      // If the rx character is NOT a newline, don't process
+      if (rx != '\n')
+      {
+         return;
+      }
+
+      // Delete the newline, we don't need it
+      s_uartRx[s_rxPtr - 1] = '\0';
+
+      // Process the command (we only have one)
+
+      lToken = s_uartRx;
+      rToken = strchr(s_uartRx, ',');
+      rToken ++;
+
+      // Only process if rToken was not null (found a , character)
+      if (rToken != NULL)
+      {
+         errno = 0;
+         lpwm = strtol(lToken, NULL, 10);
+         // Increment the rToken pointer by 1 - the number starts after the comma
+         rpwm = strtol(rToken, NULL, 10);
+
+         if (errno != 0)
+         {
+            // If there was an error, set PWM back to 0
+            lpwm = 0;
+            rpwm = 0;
+         }
+      }
+
+      // Set PWM with balues parsed from command line
+      if (pHandle->cbSetPwm(lpwm, rpwm) != DRIVE_OK)
+      {
+         pHandle->state = DRIVE_ST_ERROR;
+         return;
+      }
+
+      reset_rx_buf();
    }
+
 }
 
 void
@@ -89,12 +160,23 @@ error_task(drive_t *pHandle)
 {
    static uint8_t ledState = 0;
 
-   // Blink an LED @ frequency given by the DRIVE_LED_BLINK_MS period
-   if (pHandle->pGetTimeMs() - pHandle->lastBlink_ms > DRIVE_LED_BLINK_MS)
-   {
-      ledState = !ledState;
-      pHandle->pSetLed(ledState);
+   // Attempt to set pwm to zero in error state
+   pHandle->cbSetPwm(0, 0);
 
-      pHandle->lastBlink_ms = pHandle->pGetTimeMs();
+   // Blink an LED @ frequency given by the DRIVE_LED_BLINK_MS period
+   if (pHandle->cbGetTimeMs() - pHandle->lastBlink_ms > DRIVE_LED_BLINK_MS)
+   {
+      printf("Swapping LED\n");
+      ledState = !ledState;
+      pHandle->cbSetLed(ledState);
+
+      pHandle->lastBlink_ms = pHandle->cbGetTimeMs();
    }
+}
+
+void
+reset_rx_buf()
+{
+   memset(s_uartRx, 0, sizeof(s_uartRx));
+   s_rxPtr = 0;
 }
