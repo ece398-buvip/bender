@@ -27,6 +27,16 @@ main()
 {
    stdio_init_all();
 
+   // TODO: Debugging
+   hal_init();
+
+   while (1)
+   {
+      char x = uart_getc(DRIVE_UART_ID);
+      printf("%c", x);
+   }
+   // END
+
    s_benderDrive.cbInit = hal_init;
    s_benderDrive.cbSetPwm = hal_set_pwm;
    s_benderDrive.cbSetLed = hal_set_stat_led;
@@ -74,6 +84,9 @@ hal_init()
 
    // Initialize UART
    uart_init(DRIVE_UART_ID, DRIVE_UART_BAUD);
+   uart_set_hw_flow(DRIVE_UART_ID, false, false);
+   uart_set_format(DRIVE_UART_ID, 8, 1, UART_PARITY_NONE);
+   uart_set_fifo_enabled(DRIVE_UART_ID, false);
    gpio_set_function(DRIVE_UART_TX, UART_FUNCSEL_NUM(DRIVE_UART_ID, DRIVE_UART_TX));
    gpio_set_function(DRIVE_UART_RX, UART_FUNCSEL_NUM(DRIVE_UART_ID, DRIVE_UART_RX));
 
@@ -83,6 +96,7 @@ hal_init()
 drive_err_t
 hal_set_pwm(uint16_t left, uint16_t right)
 {
+   // TODO: Debugging
    printf("L: [%d] R: [%d]\n", left, right);
    // END
    pwm_set_chan_level(s_pwmSlice, 0, left);
@@ -109,11 +123,17 @@ hal_get_time_ms()
 
 int hal_uart_get_c()
 {
-   int rx = stdio_getchar_timeout_us(0);
-   if (rx == PICO_ERROR_TIMEOUT)
+   // int rx = stdio_getchar_timeout_us(0);
+   // if (rx == PICO_ERROR_TIMEOUT)
+   // {
+   //    return -1;
+   // }
+
+   if (!uart_is_readable(DRIVE_UART_ID))
    {
       return -1;
    }
+   
 
-   return rx;
+   return uart_getc(DRIVE_UART_ID);
 }
