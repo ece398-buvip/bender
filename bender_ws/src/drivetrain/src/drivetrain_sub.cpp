@@ -18,8 +18,7 @@ private:
     bool _serialUp = false;
 public:
     Drivetrain();
-    bool WriteDutyToPort();
-    bool SerialLinkOk();
+    bool WriteDutyToPort(); bool SerialLinkOk();
 
     uint32_t m_leftDuty;
     uint32_t m_rightDuty;
@@ -140,7 +139,7 @@ DrivetrainSub::DrivetrainSub() : Node("drivetrain_sub"), _driveTrain{}
     auto left_callback = [this](std_msgs::msg::UInt32::UniquePtr msg) {
         RCLCPP_INFO(this->get_logger(), "RECEIVED A LEFT MESSAGE: [%d]", msg->data);
 
-        if (msg->data >= 0 && msg->data <= 255)
+        if (msg->data <= 255)
         {
             _driveTrain.m_leftDuty = msg->data;
             if (!_driveTrain.WriteDutyToPort())
