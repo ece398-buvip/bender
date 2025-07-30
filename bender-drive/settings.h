@@ -2,8 +2,8 @@
 #define __DRIVE_SETTINGS_H__
 
 // PWM
-#define DRIVE_PWM_A_GPIO (2)
-#define DRIVE_PWM_B_GPIO (3)
+#define DRIVE_PWM_LEFT   (2)
+#define DRIVE_PWM_RIGHT  (3)
 
 // UART
 #define DRIVE_UART_TX    (0)

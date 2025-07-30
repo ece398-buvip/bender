@@ -28,13 +28,13 @@ main()
    stdio_init_all();
 
    // TODO: Debugging
-   hal_init();
+   // hal_init();
 
-   while (1)
-   {
-      char x = uart_getc(DRIVE_UART_ID);
-      printf("%c", x);
-   }
+   // while (1)
+   // {
+   //    char x = uart_getc(DRIVE_UART_ID);
+   //    printf("%c", x);
+   // }
    // END
 
    s_benderDrive.cbInit = hal_init;
@@ -71,10 +71,10 @@ hal_init()
    pwm_config_set_clkdiv_int(&cfg, 150);
    pwm_config_set_wrap(&cfg, 255);
 
-   gpio_set_function(DRIVE_PWM_A_GPIO, GPIO_FUNC_PWM);
-   gpio_set_function(DRIVE_PWM_B_GPIO, GPIO_FUNC_PWM);
+   gpio_set_function(DRIVE_PWM_LEFT, GPIO_FUNC_PWM);
+   gpio_set_function(DRIVE_PWM_RIGHT, GPIO_FUNC_PWM);
 
-   s_pwmSlice = pwm_gpio_to_slice_num(DRIVE_PWM_A_GPIO);
+   s_pwmSlice = pwm_gpio_to_slice_num(DRIVE_PWM_LEFT);
 
    pwm_set_chan_level(s_pwmSlice, PWM_CHAN_A, 0);
    pwm_set_chan_level(s_pwmSlice, PWM_CHAN_B, 0);
