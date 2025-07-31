@@ -48,9 +48,11 @@ Drivetrain::setupSerialPort()
    }
    _fd = file;
 
-   // Set baud rate to 115200
-   cfsetispeed(&options, B115200);
-   cfsetospeed(&options, B115200);
+   tcgetattr(file, &options);
+
+   // Set baud rate to 9600
+   cfsetispeed(&options, B9600);
+   cfsetospeed(&options, B9600);
 
    // Input settings
    options.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IXON | IXOFF | IXANY);
@@ -58,6 +60,8 @@ Drivetrain::setupSerialPort()
    options.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
    options.c_cflag &= ~(CSIZE | PARENB);
    options.c_cflag |= (CS8 | CLOCAL | CREAD);
+   // Disable RTS/CTS
+   options.c_cflag &= ~CRTSCTS;
 
    options.c_cc[VMIN] = 0;
    options.c_cc[VTIME] = 0;
@@ -109,7 +113,8 @@ bool Drivetrain::WriteDutyToPort() {
         return false;
     }
 
-    snprintf(buf, sizeof(buf), "%d,%d\n", m_leftDuty, m_rightDuty);
+    // snprintf(buf, sizeof(buf), "%03d,%03d\n", m_leftDuty, m_rightDuty);
+    snprintf(buf, sizeof(buf), "%03d,%03d\n", m_leftDuty, m_rightDuty);
 
     writeToPort(buf);
 
@@ -137,7 +142,7 @@ DrivetrainSub::DrivetrainSub() : Node("drivetrain_sub"), _driveTrain{}
     // Create the callback that happens whenever a message is received on
     //   left/right publisher interfaces
     auto left_callback = [this](std_msgs::msg::UInt32::UniquePtr msg) {
-        RCLCPP_INFO(this->get_logger(), "RECEIVED A LEFT MESSAGE: [%d]", msg->data);
+        RCLCPP_INFO(this->get_logger(), "RECEIVED A LEFT MESSAGE: [%03d]", msg->data);
 
         if (msg->data <= 255)
         {
@@ -154,7 +159,7 @@ DrivetrainSub::DrivetrainSub() : Node("drivetrain_sub"), _driveTrain{}
     };
 
     auto right_callback = [this](std_msgs::msg::UInt32::UniquePtr msg) {
-        RCLCPP_INFO(this->get_logger(), "RECEIVED A RIGHT MESSAGE: [%d]", msg->data);
+        RCLCPP_INFO(this->get_logger(), "RECEIVED A RIGHT MESSAGE: [%03d]", msg->data);
 
         if (msg->data <= 255)
         {
