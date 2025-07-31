@@ -118,11 +118,17 @@ run_task(drive_t *pHandle)
          return;
       }
 
+      // Check the line length - we except 7 characters. If not that, delete and don't process
+      if (strlen(s_uartRx) != 8)
+      {
+         reset_rx_buf();
+         return;
+      }
+
       // Delete the newline, we don't need it
       s_uartRx[s_rxPtr - 1] = '\0';
 
       // Process the command (we only have one)
-
       lToken = s_uartRx;
       rToken = strchr(s_uartRx, ',');
       rToken ++;
@@ -135,19 +141,17 @@ run_task(drive_t *pHandle)
          // Increment the rToken pointer by 1 - the number starts after the comma
          rpwm = strtol(rToken, NULL, 10);
 
-         if (errno != 0)
+         if (errno == 0)
          {
-            // If there was an error, set PWM back to 0
-            lpwm = 0;
-            rpwm = 0;
-         }
-      }
+            // Only apply PWM if there was no errors
+            // Set PWM with balues parsed from command line
+            if (pHandle->cbSetPwm(lpwm, rpwm) != DRIVE_OK)
+            {
+               pHandle->state = DRIVE_ST_ERROR;
+               return;
+            }
 
-      // Set PWM with balues parsed from command line
-      if (pHandle->cbSetPwm(lpwm, rpwm) != DRIVE_OK)
-      {
-         pHandle->state = DRIVE_ST_ERROR;
-         return;
+         }
       }
 
       reset_rx_buf();

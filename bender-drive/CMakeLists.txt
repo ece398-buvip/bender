@@ -41,8 +41,10 @@ pico_set_program_name(bender-drive "bender-drive")
 pico_set_program_version(bender-drive "0.1")
 
 # Modify the below lines to enable/disable output over UART/USB
-# pico_enable_stdio_uart(bender-drive 0)
+
+# DEBUGGING VIA USB
 pico_enable_stdio_usb(bender-drive 1)
+pico_enable_stdio_uart(bender-drive 0)
 
 # Add the standard library to the build
 target_link_libraries(bender-drive

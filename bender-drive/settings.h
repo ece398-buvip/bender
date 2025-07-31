@@ -8,7 +8,7 @@
 // UART
 #define DRIVE_UART_TX    (0)
 #define DRIVE_UART_RX    (1)
-#define DRIVE_UART_BAUD  (115200)
+#define DRIVE_UART_BAUD  (9600)
 #define DRIVE_UART_ID    uart0
 
 // Static Buffers
