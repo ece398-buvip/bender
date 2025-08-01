@@ -20,8 +20,8 @@ public:
     Drivetrain();
     bool WriteDutyToPort(); bool SerialLinkOk();
 
-    uint32_t m_leftDuty;
-    uint32_t m_rightDuty;
+    int32_t m_leftDuty;
+    int32_t m_rightDuty;
 };
 
 Drivetrain::Drivetrain() : m_leftDuty{0}, m_rightDuty{0}
@@ -50,9 +50,9 @@ Drivetrain::setupSerialPort()
 
    tcgetattr(file, &options);
 
-   // Set baud rate to 9600
-   cfsetispeed(&options, B9600);
-   cfsetospeed(&options, B9600);
+   // Set baud rate to 115200
+   cfsetispeed(&options, B115200);
+   cfsetospeed(&options, B115200);
 
    // Input settings
    options.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IXON | IXOFF | IXANY);
@@ -146,7 +146,8 @@ DrivetrainSub::DrivetrainSub() : Node("drivetrain_sub"), _driveTrain{}
 
         if (msg->data <= 1.0f && msg->data >= -1.0f)
         {
-            _driveTrain.m_leftDuty = msg->data * 255;
+            // _driveTrain.m_leftDuty = msg->data * 255;
+            _driveTrain.m_leftDuty = msg->data * 50;
             if (!_driveTrain.WriteDutyToPort())
             {
                 RCLCPP_ERROR(this->get_logger(), "Failed to write duty cycle to port!");
@@ -163,7 +164,8 @@ DrivetrainSub::DrivetrainSub() : Node("drivetrain_sub"), _driveTrain{}
 
         if (msg->data <= 1.0f && msg->data >= -1.0f)
         {
-            _driveTrain.m_rightDuty = msg->data * 255;
+            // _driveTrain.m_rightDuty = msg->data * 255;
+            _driveTrain.m_rightDuty = msg->data * 50;
             if (!_driveTrain.WriteDutyToPort())
             {
                 RCLCPP_ERROR(this->get_logger(), "Failed to write duty cycle to port!");

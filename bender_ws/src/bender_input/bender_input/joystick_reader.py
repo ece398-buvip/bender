@@ -47,7 +47,7 @@ class JoystickReader:
 
         return changed
 
-    def get_thumbsticks(self) -> dict[str, int]:
+    def get_thumbsticks(self) -> dict[str, float]:
         """
         Returns the current state of thumbsticks as a dict.
         """
