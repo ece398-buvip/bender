@@ -28,7 +28,7 @@ typedef enum
 } drive_state_t;
 
 typedef drive_err_t (*drive_init_cb_t)();
-typedef drive_err_t (*drive_set_pwm_cb_t)(uint16_t leftPwm, uint16_t rightPwm);
+typedef drive_err_t (*drive_set_pwm_cb_t)(int16_t leftPwm, int16_t rightPwm);
 typedef drive_err_t (*drive_set_stat_led_cb_t)(uint8_t stat);
 typedef uint32_t (*drive_get_time_ms_cb_t)();
 typedef int (*drive_uart_get_c_cb_t)();

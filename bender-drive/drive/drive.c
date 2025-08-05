@@ -19,6 +19,8 @@ static void run_task(drive_t *pHandle);
 static void error_task(drive_t *pHandle);
 static void reset_rx_buf();
 
+static int get_speeds(char* strBuf, int16_t* pLpwm, int16_t* pRpwm);
+
 // ========= PUBLIC API =========
 
 drive_err_t
@@ -87,11 +89,9 @@ boot_task(drive_t *pHandle)
 void
 run_task(drive_t *pHandle)
 {
-   uint16_t lpwm = 0;
-   uint16_t rpwm = 0;
+   int16_t lpwm = 0;
+   int16_t rpwm = 0;
    uint8_t rx = 0;
-   char* lToken = NULL;
-   char* rToken = NULL;
    int next = 0;
 
    // Make sure light is on to indicate to user firmware is running
@@ -118,40 +118,17 @@ run_task(drive_t *pHandle)
          return;
       }
 
-      // Check the line length - we except 7 characters. If not that, delete and don't process
-      if (strlen(s_uartRx) != 8)
+      if (get_speeds((char*)s_uartRx, &lpwm, &rpwm) != 0)
       {
          reset_rx_buf();
          return;
       }
 
-      // Delete the newline, we don't need it
-      s_uartRx[s_rxPtr - 1] = '\0';
-
-      // Process the command (we only have one)
-      lToken = s_uartRx;
-      rToken = strchr(s_uartRx, ',');
-      rToken ++;
-
-      // Only process if rToken was not null (found a , character)
-      if (rToken != NULL)
+      if (pHandle->cbSetPwm(lpwm, rpwm) != 0)
       {
-         errno = 0;
-         lpwm = strtol(lToken, NULL, 10);
-         // Increment the rToken pointer by 1 - the number starts after the comma
-         rpwm = strtol(rToken, NULL, 10);
-
-         if (errno == 0)
-         {
-            // Only apply PWM if there was no errors
-            // Set PWM with balues parsed from command line
-            if (pHandle->cbSetPwm(lpwm, rpwm) != DRIVE_OK)
-            {
-               pHandle->state = DRIVE_ST_ERROR;
-               return;
-            }
-
-         }
+         pHandle->state = DRIVE_ST_ERROR;
+         reset_rx_buf();
+         return;
       }
 
       reset_rx_buf();
@@ -183,4 +160,46 @@ reset_rx_buf()
 {
    memset(s_uartRx, 0, sizeof(s_uartRx));
    s_rxPtr = 0;
+}
+
+// ========= Private Functions =========
+
+int get_speeds(char* strBuf, int16_t* pLpwm, int16_t* pRpwm)
+{
+   char *lToken = NULL;
+   char *rToken = NULL;
+
+   if (strBuf == NULL || pLpwm == NULL || pRpwm == NULL)
+   {
+      return -1; // Error: null pointer
+   }
+
+   if (strlen(strBuf) < 8 || strlen(strBuf) > 10)
+   {
+      return -2;
+   }
+
+   lToken = strBuf;
+   rToken = strchr(strBuf, ',');
+
+   if (rToken == NULL)
+   {
+      return -3; // Error: no comma found
+   }
+
+   // String we are interested in starts after the comma
+   rToken++;
+
+   // Clear any previous errors
+   errno = 0;
+
+   *pLpwm = strtol(lToken, NULL, 10);
+   *pRpwm = strtol(rToken, NULL, 10);
+
+   if (errno != 0)
+   {
+      return -4; // Error: conversion failed
+   }
+
+   return 0;
 }
