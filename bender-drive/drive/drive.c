@@ -16,10 +16,14 @@ size_t s_rxPtr = 0;
 static drive_err_t null_check(drive_t *pHandle);
 static void boot_task(drive_t *pHandle);
 static void run_task(drive_t *pHandle);
+static void disabled_task(drive_t *pHandle);
 static void error_task(drive_t *pHandle);
+static void push_rx_buf(char c);
 static void reset_rx_buf();
 
-static int get_speeds(char* strBuf, int16_t* pLpwm, int16_t* pRpwm);
+static int get_speeds(char *strBuf, int16_t *pLpwm, int16_t *pRpwm);
+static int get_heartbeat(char *strBuf, uint8_t *pHeartbeatPresent);
+static uint8_t check_heartbeat(drive_t *pHandle);
 
 // ========= PUBLIC API =========
 
@@ -38,6 +42,9 @@ DriveFSM(drive_t *pHandle)
          break;
       case DRIVE_ST_RUN:
          run_task(pHandle);
+         break;
+      case DRIVE_ST_DIS:
+         disabled_task(pHandle);
          break;
       case DRIVE_ST_ERROR:
          error_task(pHandle);
@@ -93,6 +100,15 @@ run_task(drive_t *pHandle)
    int16_t rpwm = 0;
    uint8_t rx = 0;
    int next = 0;
+   uint8_t heartbeatPresent = 0;
+
+   // Check that heartbeat signal is present
+   if (!check_heartbeat(pHandle))
+   {
+      pHandle->state = DRIVE_ST_DIS;
+      reset_rx_buf();
+      return;
+   }
 
    // Make sure light is on to indicate to user firmware is running
    pHandle->cbSetLed(1);
@@ -101,6 +117,7 @@ run_task(drive_t *pHandle)
 
    if (next >= 0)
    {
+
       rx = (uint8_t)next;
 
       if (s_rxPtr + 1 >= sizeof(s_uartRx))
@@ -109,8 +126,7 @@ run_task(drive_t *pHandle)
          return;
       }
 
-      s_uartRx[s_rxPtr] = rx;
-      s_rxPtr++;
+      push_rx_buf(rx);
 
       // If the rx character is NOT a newline, don't process
       if (rx != '\n')
@@ -118,34 +134,77 @@ run_task(drive_t *pHandle)
          return;
       }
 
-      if (get_speeds((char*)s_uartRx, &lpwm, &rpwm) != 0)
+      if (get_speeds((char *)s_uartRx, &lpwm, &rpwm) == 0)
       {
-         reset_rx_buf();
-         return;
+         if (pHandle->cbSetPwm(lpwm, rpwm) != 0)
+         {
+            pHandle->state = DRIVE_ST_ERROR;
+         }
       }
-
-      if (pHandle->cbSetPwm(lpwm, rpwm) != 0)
+      else if (get_heartbeat((char *)s_uartRx, &heartbeatPresent) == 0)
       {
-         pHandle->state = DRIVE_ST_ERROR;
-         reset_rx_buf();
-         return;
+         // TODO: A heartbeat was received, reset the timer
+         if (heartbeatPresent)
+         {
+            pHandle->lastHeartBeat_ms = pHandle->cbGetTimeMs();
+         }
       }
 
       reset_rx_buf();
+      return;
    }
+}
 
+void
+disabled_task(drive_t *pHandle)
+{
+   uint32_t now = pHandle->cbGetTimeMs();
+   uint32_t diff = now - pHandle->lastBlink_ms;
+   int rx = 0;
+
+   // Put robot in a safe state
+   pHandle->cbSetPwm(0, 0);
+
+   // Listen for an incoming heartbeat signal (to re-enable)
+   do
+   {
+      rx = pHandle->cbUartGetC();
+      if (rx >= 0)
+      {
+         if (rx == 'H')
+         {
+            pHandle->lastHeartBeat_ms = pHandle->cbGetTimeMs();
+            pHandle->state = DRIVE_ST_RUN;
+         }
+      }
+   } while (rx >= 0);
+
+   // LED Blink code - 1 second period, ON for DRIVE_LED_DIS_BLINK_MS
+   if (diff > 1000)
+   {
+      pHandle->lastBlink_ms = now;
+   }
+   else if (diff > DRIVE_LED_DIS_BLINK_MS)
+   {
+      pHandle->cbSetLed(0);
+   }
+   else
+   {
+      pHandle->cbSetLed(1);
+   }
 }
 
 void
 error_task(drive_t *pHandle)
 {
+   int rx = 0;
    static uint8_t ledState = 0;
 
    // Attempt to set pwm to zero in error state
    pHandle->cbSetPwm(0, 0);
 
    // Blink an LED @ frequency given by the DRIVE_LED_BLINK_MS period
-   if (pHandle->cbGetTimeMs() - pHandle->lastBlink_ms > DRIVE_LED_BLINK_MS)
+   if (pHandle->cbGetTimeMs() - pHandle->lastBlink_ms > DRIVE_LED_ERR_BLINK_MS)
    {
       printf("Swapping LED\n");
       ledState = !ledState;
@@ -162,9 +221,18 @@ reset_rx_buf()
    s_rxPtr = 0;
 }
 
-// ========= Private Functions =========
+void
+push_rx_buf(char c)
+{
 
-int get_speeds(char* strBuf, int16_t* pLpwm, int16_t* pRpwm)
+   s_uartRx[s_rxPtr] = c;
+   s_rxPtr++;
+}
+
+// ========= Helper Functions =========
+
+int
+get_speeds(char *strBuf, int16_t *pLpwm, int16_t *pRpwm)
 {
    char *lToken = NULL;
    char *rToken = NULL;
@@ -202,4 +270,47 @@ int get_speeds(char* strBuf, int16_t* pLpwm, int16_t* pRpwm)
    }
 
    return 0;
+}
+
+int
+get_heartbeat(char *strBuf, uint8_t *pHeartbeatPresent)
+{
+   if (strBuf == NULL)
+   {
+      return -1;
+   }
+
+   if (strBuf[0] == 'H')
+   {
+      *pHeartbeatPresent = 1;
+   }
+
+   return 0;
+}
+
+uint8_t
+check_heartbeat(drive_t *pHandle)
+{
+   if (pHandle == NULL)
+   {
+      // Treat null handle like failed heartbeat
+      return 0;
+   }
+
+   // TODO: DEBUGGING 
+   // disable for now
+   // if (pHandle->lastHeartBeat_ms == 0)
+   // {
+   //    // 0 means no heartbeat has been received yet. Only start
+   //    //   monitoring on first heartbeat - return OK for now
+   //    return 1;
+   // }
+   // END
+
+   if ((pHandle->cbGetTimeMs() - pHandle->lastHeartBeat_ms) > DRIVE_HB_MAX_INTERVAL)
+   {
+      return 0;
+   }
+
+   return 1;
 }

@@ -2,6 +2,7 @@
 #include "pico/stdlib.h"
 #include "pico/time.h"
 #include "hardware/pwm.h"
+#include "hardware/watchdog.h"
 
 #include "drive/drive.h"
 #include "settings.h"
@@ -52,6 +53,7 @@ main()
    s_benderDrive.cbSetLed = hal_set_stat_led;
    s_benderDrive.cbGetTimeMs = hal_get_time_ms;
    s_benderDrive.cbUartGetC = hal_uart_get_c;
+   s_benderDrive.lastHeartBeat_ms = 0;
 
    while (1)
    {

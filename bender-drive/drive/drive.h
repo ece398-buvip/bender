@@ -11,8 +11,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define DRIVE_LED_BLINK_MS (250)
-
 typedef enum
 {
    DRIVE_OK = 0,
@@ -24,6 +22,7 @@ typedef enum
 {
    DRIVE_ST_BOOT,
    DRIVE_ST_RUN,
+   DRIVE_ST_DIS, // Disabled state
    DRIVE_ST_ERROR,
 } drive_state_t;
 
@@ -37,6 +36,7 @@ typedef struct
 {
    drive_state_t state;
    uint32_t lastBlink_ms;
+   uint32_t lastHeartBeat_ms;
 
    drive_init_cb_t cbInit;
    drive_set_pwm_cb_t cbSetPwm;
