@@ -1,0 +1,12 @@
+%YAML 1.2
+---
+launch:
+  - node:
+      pkg: "drivetrain"
+      exec: "drivetrain_sub"
+      name: "drivetrain"
+
+  - node:
+      pkg: "bender_input"
+      exec: "bender_teleop"
+      name: "bender_teleop"
