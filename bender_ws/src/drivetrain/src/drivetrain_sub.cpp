@@ -18,7 +18,9 @@ private:
     bool _serialUp = false;
 public:
     Drivetrain();
-    bool WriteDutyToPort(); bool SerialLinkOk();
+    bool WriteDutyToPort();
+    bool SerialLinkOk();
+    bool SendHeartbeat();
 
     int32_t m_leftDuty;
     int32_t m_rightDuty;
@@ -121,6 +123,18 @@ bool Drivetrain::WriteDutyToPort() {
     return true;
 }
 
+bool Drivetrain::SendHeartbeat()
+{
+    if (!_serialUp)
+    {
+        return false;
+    }
+
+    writeToPort("H\n");
+
+    return true;
+}
+
 class DrivetrainSub : public rclcpp::Node{
 public:
     DrivetrainSub();
@@ -128,11 +142,13 @@ private:
     rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr _leftDuty;
     rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr _rightDuty;
     Drivetrain _driveTrain;
+    rclcpp::TimerBase::SharedPtr _heartbeatTimer;
+    void heartbeat_callback();
 };
+
 
 DrivetrainSub::DrivetrainSub() : Node("drivetrain_sub"), _driveTrain{}
 {
-
     // Check if drivetrain constructed OK
     if (!_driveTrain.SerialLinkOk())
     {
@@ -147,7 +163,7 @@ DrivetrainSub::DrivetrainSub() : Node("drivetrain_sub"), _driveTrain{}
         if (msg->data <= 1.0f && msg->data >= -1.0f)
         {
             // _driveTrain.m_leftDuty = msg->data * 255;
-            _driveTrain.m_leftDuty = msg->data * 50;
+            _driveTrain.m_leftDuty = msg->data * 40;
             if (!_driveTrain.WriteDutyToPort())
             {
                 RCLCPP_ERROR(this->get_logger(), "Failed to write duty cycle to port!");
@@ -165,7 +181,7 @@ DrivetrainSub::DrivetrainSub() : Node("drivetrain_sub"), _driveTrain{}
         if (msg->data <= 1.0f && msg->data >= -1.0f)
         {
             // _driveTrain.m_rightDuty = msg->data * 255;
-            _driveTrain.m_rightDuty = msg->data * 50;
+            _driveTrain.m_rightDuty = msg->data * 40;
             if (!_driveTrain.WriteDutyToPort())
             {
                 RCLCPP_ERROR(this->get_logger(), "Failed to write duty cycle to port!");
@@ -181,7 +197,19 @@ DrivetrainSub::DrivetrainSub() : Node("drivetrain_sub"), _driveTrain{}
     _leftDuty = this->create_subscription<std_msgs::msg::Float32>("bender/left_speed", 1, left_callback);
     _rightDuty = this->create_subscription<std_msgs::msg::Float32>("bender/right_speed", 1, right_callback);
 
+    // Create a timer that runs every 500ms
+    _heartbeatTimer = this->create_wall_timer(
+        std::chrono::milliseconds(500),
+        std::bind(&DrivetrainSub::heartbeat_callback, this)
+    );
+
     RCLCPP_INFO(this->get_logger(), "Starting Drivetrain Listener");
+}
+
+void DrivetrainSub::heartbeat_callback()
+{
+    RCLCPP_INFO(this->get_logger(), "Sent Heartbeat");
+    _driveTrain.SendHeartbeat();
 }
 
 // Main program for package
