@@ -4,7 +4,7 @@
 #include <fcntl.h>
 
 #include "rclcpp/rclcpp.hpp"
-#include "std_msgs/msg/u_int32.hpp"
+#include "std_msgs/msg/float32.hpp"
 
 class Drivetrain
 {
@@ -20,8 +20,8 @@ public:
     Drivetrain();
     bool WriteDutyToPort(); bool SerialLinkOk();
 
-    uint32_t m_leftDuty;
-    uint32_t m_rightDuty;
+    int32_t m_leftDuty;
+    int32_t m_rightDuty;
 };
 
 Drivetrain::Drivetrain() : m_leftDuty{0}, m_rightDuty{0}
@@ -50,9 +50,9 @@ Drivetrain::setupSerialPort()
 
    tcgetattr(file, &options);
 
-   // Set baud rate to 9600
-   cfsetispeed(&options, B9600);
-   cfsetospeed(&options, B9600);
+   // Set baud rate to 115200
+   cfsetispeed(&options, B115200);
+   cfsetospeed(&options, B115200);
 
    // Input settings
    options.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IXON | IXOFF | IXANY);
@@ -125,8 +125,8 @@ class DrivetrainSub : public rclcpp::Node{
 public:
     DrivetrainSub();
 private:
-    rclcpp::Subscription<std_msgs::msg::UInt32>::SharedPtr _leftDuty;
-    rclcpp::Subscription<std_msgs::msg::UInt32>::SharedPtr _rightDuty;
+    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr _leftDuty;
+    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr _rightDuty;
     Drivetrain _driveTrain;
 };
 
@@ -141,12 +141,13 @@ DrivetrainSub::DrivetrainSub() : Node("drivetrain_sub"), _driveTrain{}
 
     // Create the callback that happens whenever a message is received on
     //   left/right publisher interfaces
-    auto left_callback = [this](std_msgs::msg::UInt32::UniquePtr msg) {
-        RCLCPP_INFO(this->get_logger(), "RECEIVED A LEFT MESSAGE: [%03d]", msg->data);
+    auto left_callback = [this](std_msgs::msg::Float32::UniquePtr msg) {
+        RCLCPP_INFO(this->get_logger(), "RECEIVED A LEFT MESSAGE: [%0.2f]", msg->data);
 
-        if (msg->data <= 255)
+        if (msg->data <= 1.0f && msg->data >= -1.0f)
         {
-            _driveTrain.m_leftDuty = msg->data;
+            // _driveTrain.m_leftDuty = msg->data * 255;
+            _driveTrain.m_leftDuty = msg->data * 50;
             if (!_driveTrain.WriteDutyToPort())
             {
                 RCLCPP_ERROR(this->get_logger(), "Failed to write duty cycle to port!");
@@ -158,12 +159,13 @@ DrivetrainSub::DrivetrainSub() : Node("drivetrain_sub"), _driveTrain{}
         }
     };
 
-    auto right_callback = [this](std_msgs::msg::UInt32::UniquePtr msg) {
-        RCLCPP_INFO(this->get_logger(), "RECEIVED A RIGHT MESSAGE: [%03d]", msg->data);
+    auto right_callback = [this](std_msgs::msg::Float32::UniquePtr msg) {
+        RCLCPP_INFO(this->get_logger(), "RECEIVED A RIGHT MESSAGE: [%0.2f]", msg->data);
 
-        if (msg->data <= 255)
+        if (msg->data <= 1.0f && msg->data >= -1.0f)
         {
-            _driveTrain.m_rightDuty = msg->data;
+            // _driveTrain.m_rightDuty = msg->data * 255;
+            _driveTrain.m_rightDuty = msg->data * 50;
             if (!_driveTrain.WriteDutyToPort())
             {
                 RCLCPP_ERROR(this->get_logger(), "Failed to write duty cycle to port!");
@@ -176,8 +178,8 @@ DrivetrainSub::DrivetrainSub() : Node("drivetrain_sub"), _driveTrain{}
 
     };
 
-    _leftDuty = this->create_subscription<std_msgs::msg::UInt32>("bender/left_duty", 1, left_callback);
-    _rightDuty = this->create_subscription<std_msgs::msg::UInt32>("bender/right_duty", 1, right_callback);
+    _leftDuty = this->create_subscription<std_msgs::msg::Float32>("bender/left_speed", 1, left_callback);
+    _rightDuty = this->create_subscription<std_msgs::msg::Float32>("bender/right_speed", 1, right_callback);
 
     RCLCPP_INFO(this->get_logger(), "Starting Drivetrain Listener");
 }
