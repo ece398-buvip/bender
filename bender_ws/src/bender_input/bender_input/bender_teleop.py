@@ -4,15 +4,14 @@ from datetime import datetime
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float32
+from geometry_msgs.msg import Twist
 
 from bender_input.joystick_reader import JoystickReader
 
 class TeleopPublisher(Node):
     def __init__(self):
         super().__init__('teleop_pub')
-        self.left_publisher_ = self.create_publisher(Float32, 'bender/left_speed', 10)
-        self.right_publisher_ = self.create_publisher(Float32, 'bender/right_speed', 10)
+        self.twist_publisher_ = self.create_publisher(Twist, 'bender/twist', 10)
 
         # Try to setup the joystick
         try:
@@ -30,25 +29,23 @@ class TeleopPublisher(Node):
         self.poll_thread = threading.Thread(target=self.poll_controller)
         self.poll_thread.start()
 
-    def publish_speeds(self, left_speed: float, right_speed: float):
+    def publish_speeds(self, left_stick_up: float, right_stick_side: float):
         self.last_publish = datetime.now()
-        left_msg = Float32()
-        right_msg = Float32()
+        twist_msg = Twist()
 
-        left_msg.data = left_speed
-        right_msg.data = right_speed
+        twist_msg.linear.x = left_stick_up
+        twist_msg.angular.z = right_stick_side
 
-        self.left_publisher_.publish(left_msg)
-        self.right_publisher_.publish(right_msg)
+        self.twist_publisher_.publish(twist_msg)
 
-        self.get_logger().info(F"Publishing Speeds: L: [{left_speed}] R: [{right_speed}]")
-    
+        self.get_logger().info(F"Publishing Twist: L: [{left_stick_up}] R: [{right_stick_side}]")
+
     def poll_controller(self):
         while self.should_run:
             if self.jr.poll():
                 sticks = self.jr.get_thumbsticks()
                 left = self._round_2(self._clamp(-sticks['left_y'], -1.0, 1.0))
-                right = self._round_2(self._clamp(-sticks['right_y'], -1.0, 1.0))
+                right = self._round_2(self._clamp(-sticks['right_x'], -1.0, 1.0))
                 self.publish_speeds(float(left), float(right))
     
     def _safety_routine(self):

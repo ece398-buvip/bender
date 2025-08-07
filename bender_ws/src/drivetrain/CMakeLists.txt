@@ -11,11 +11,11 @@ find_package(ament_cmake REQUIRED)
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(std_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 
 # Create drivetrain listener executable
 add_executable(drivetrain_sub src/drivetrain_sub.cpp)
-ament_target_dependencies(drivetrain_sub rclcpp std_msgs)
+ament_target_dependencies(drivetrain_sub rclcpp geometry_msgs)
 
 install(TARGETS
   drivetrain_sub

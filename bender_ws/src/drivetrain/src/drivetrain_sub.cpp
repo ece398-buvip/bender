@@ -4,7 +4,20 @@
 #include <fcntl.h>
 
 #include "rclcpp/rclcpp.hpp"
-#include "std_msgs/msg/float32.hpp"
+#include "geometry_msgs/msg/twist.hpp"
+
+static double clampDouble(double val, double min, double max)
+{
+    if (val < min)
+    {
+        return min;
+    }
+    else if (val > max)
+    {
+        return max;
+    }
+    return val;
+}
 
 class Drivetrain
 {
@@ -139,8 +152,7 @@ class DrivetrainSub : public rclcpp::Node{
 public:
     DrivetrainSub();
 private:
-    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr _leftDuty;
-    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr _rightDuty;
+    rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr _twist;
     Drivetrain _driveTrain;
     rclcpp::TimerBase::SharedPtr _heartbeatTimer;
     void heartbeat_callback();
@@ -157,45 +169,28 @@ DrivetrainSub::DrivetrainSub() : Node("drivetrain_sub"), _driveTrain{}
 
     // Create the callback that happens whenever a message is received on
     //   left/right publisher interfaces
-    auto left_callback = [this](std_msgs::msg::Float32::UniquePtr msg) {
-        RCLCPP_INFO(this->get_logger(), "RECEIVED A LEFT MESSAGE: [%0.2f]", msg->data);
+    auto twist_callback = [this](geometry_msgs::msg::Twist::UniquePtr msg) {
+        RCLCPP_INFO(this->get_logger(), "RECEIVED A TWIST MESSAGE: [linear.x: %0.2f, angular.z: %0.2f]", msg->linear.x, msg->angular.z);
 
-        if (msg->data <= 1.0f && msg->data >= -1.0f)
+        double vX = clampDouble(msg->linear.x, -1.0, 1.0);
+        double wZ = clampDouble(msg->angular.z, -1.0, 1.0);
+
+        // Calculate left and right duty cycles from the twist velocities.
+        double left = clampDouble(vX - wZ, -1.0, 1.0);
+        double right = clampDouble(vX + wZ, -1.0, 1.0);
+
+        _driveTrain.m_leftDuty = left * 55;
+        _driveTrain.m_rightDuty = right * 55;
+
+        if (!_driveTrain.WriteDutyToPort())
         {
-            // _driveTrain.m_leftDuty = msg->data * 255;
-            _driveTrain.m_leftDuty = msg->data * 40;
-            if (!_driveTrain.WriteDutyToPort())
-            {
-                RCLCPP_ERROR(this->get_logger(), "Failed to write duty cycle to port!");
-            }
+            RCLCPP_ERROR(this->get_logger(), "Failed to write duty cycle to port!");
         }
-        else
-        {
-            RCLCPP_ERROR(this->get_logger(), "Invalid duty cycle");
-        }
+
+        RCLCPP_INFO(this->get_logger(), "Left Duty: %d, Right Duty: %d", _driveTrain.m_leftDuty, _driveTrain.m_rightDuty);
     };
 
-    auto right_callback = [this](std_msgs::msg::Float32::UniquePtr msg) {
-        RCLCPP_INFO(this->get_logger(), "RECEIVED A RIGHT MESSAGE: [%0.2f]", msg->data);
-
-        if (msg->data <= 1.0f && msg->data >= -1.0f)
-        {
-            // _driveTrain.m_rightDuty = msg->data * 255;
-            _driveTrain.m_rightDuty = msg->data * 40;
-            if (!_driveTrain.WriteDutyToPort())
-            {
-                RCLCPP_ERROR(this->get_logger(), "Failed to write duty cycle to port!");
-            }
-        }
-        else
-        {
-            RCLCPP_ERROR(this->get_logger(), "Invalid duty cycle");
-        }
-
-    };
-
-    _leftDuty = this->create_subscription<std_msgs::msg::Float32>("bender/left_speed", 1, left_callback);
-    _rightDuty = this->create_subscription<std_msgs::msg::Float32>("bender/right_speed", 1, right_callback);
+    _twist = this->create_subscription<geometry_msgs::msg::Twist>("bender/twist", 1, twist_callback);
 
     // Create a timer that runs every 500ms
     _heartbeatTimer = this->create_wall_timer(

@@ -11,7 +11,6 @@
 
 static drive_err_t hal_init();
 static int hal_uart_get_c(); // Blocks until a character is read
-static uint8_t hal_uart_rx_ready(); // Returns non-zero if character is ready
 static drive_err_t hal_set_pwm(int16_t left, int16_t right);
 static drive_err_t hal_set_stat_led(uint8_t stat);
 static uint32_t hal_get_time_ms();
@@ -32,21 +31,6 @@ main()
    // Wait 2 seconds to start up - prevents initializing UART 
    //   interface and making Pi think there's a console to boot to
    sleep_ms(2000);
-
-   // TODO: Debugging
-   // hal_init();
-
-   // while (1)
-   // {
-   //    int rx = hal_uart_get_c();
-   //    if (rx >= 0)
-   //    {
-   //       printf("%c", (char)rx);
-   //    }
-
-   //    hal_set_pwm(128, 64);
-   // }
-   // END
 
    s_benderDrive.cbInit = hal_init;
    s_benderDrive.cbSetPwm = hal_set_pwm;
