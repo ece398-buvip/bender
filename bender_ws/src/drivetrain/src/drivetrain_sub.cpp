@@ -203,8 +203,14 @@ DrivetrainSub::DrivetrainSub() : Node("drivetrain_sub"), _driveTrain{}
 
 void DrivetrainSub::heartbeat_callback()
 {
-    RCLCPP_INFO(this->get_logger(), "Sent Heartbeat");
-    _driveTrain.SendHeartbeat();
+    if (_driveTrain.SendHeartbeat())
+    {
+        RCLCPP_INFO(this->get_logger(), "Sent Heartbeat");
+    }
+    else
+    {
+        RCLCPP_ERROR(this->get_logger(), "Failed to send heartbeat");
+    }
 }
 
 // Main program for package

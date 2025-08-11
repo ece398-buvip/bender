@@ -27,6 +27,7 @@ class TeleopPublisher(Node):
         # Start polling the joystick in a seperate thread
         self.should_run = True
         self.poll_thread = threading.Thread(target=self.poll_controller)
+        self.poll_thread.daemon = True  # Ensure thread exits when main program does
         self.poll_thread.start()
 
     def publish_speeds(self, left_stick_up: float, right_stick_side: float):

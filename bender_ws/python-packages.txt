@@ -1,0 +1,5 @@
+Python packages this project relies on:
+---------------------------------------
+
+opencv-python
+pupil-apriltags

@@ -4,5 +4,14 @@
     ],
     "python.analysis.extraPaths": [
         "/opt/ros/jazzy/lib/python3.12/site-packages"
-    ]
+    ],
+    "workbench.colorCustomizations": {
+        "commandCenter.border": "#15202b99",
+        "sash.hoverBorder": "#71b3ca",
+        "titleBar.activeBackground": "#4c9fbc",
+        "titleBar.activeForeground": "#15202b",
+        "titleBar.inactiveBackground": "#4c9fbc99",
+        "titleBar.inactiveForeground": "#15202b99"
+    },
+    "peacock.color": "#4c9fbc"
 }
