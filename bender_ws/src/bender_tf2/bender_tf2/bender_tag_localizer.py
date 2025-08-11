@@ -3,6 +3,7 @@ import threading
 import rclpy
 from rclpy.node import Node
 from bender_tf2.bender_tag_detector import BenderTagDetector
+from bender_tf2.bender_tag_common import rotation_matrix_to_quaternion
 from geometry_msgs.msg import TransformStamped
 
 from tf2_ros import TransformBroadcaster
@@ -53,7 +54,7 @@ class TagLocalizer(Node):
                 # Set Header data
                 t.header.stamp = self.get_clock().now().to_msg()
                 t.header.frame_id = 'world'
-                t.child_frame_id = self.robot_name
+                t.child_frame_id = "bender_cam"
 
                 # TODO: We care about rotation... but start with pose
                 # TODO: I think this is wrong - tf2 is built to solve the problem of translating frames, maybe we need to rotate frame somehow?
@@ -61,8 +62,13 @@ class TagLocalizer(Node):
                 t.transform.translation.y = float(d.pose_t[2]) # Camera z is wold y
                 t.transform.translation.z = float(d.pose_t[1]) # Camera y is world z
                 rclpy.logging.get_logger("bender_tf2").debug(F"Publishing pose [{t.transform.translation.x}, {t.transform.translation.y}, {t.transform.translation.z}]")
+                rclpy.logging.get_logger("bender_tf2").debug(F"Rotation matrix: [{d.pose_R}]")
 
-                # TODO: Set rotation here
+                quat = rotation_matrix_to_quaternion(d.pose_R)
+                t.transform.rotation.w = float(quat[0])
+                t.transform.rotation.x = float(quat[1])
+                t.transform.rotation.z = float(quat[2])
+                t.transform.rotation.y = float(quat[3])
 
                 # Send the transform
                 self.tf_broadcaster.sendTransform(t)
