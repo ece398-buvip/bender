@@ -1,15 +1,15 @@
 import time
 import threading
 import rclpy
+import numpy as np
 from rclpy.node import Node
 from bender_tf2.bender_tag_detector import BenderTagDetector
 from bender_tf2.bender_tag_common import rotation_matrix_to_quaternion
-from geometry_msgs.msg import TransformStamped
-
+from geometry_msgs.msg import TransformStamped, Quaternion
 from tf2_ros import TransformBroadcaster
 
 # Camera parameters - TODO: Move to a config file
-cam_index = 0
+cam_index = 4
 fx = float(636.56831794)
 fy = float(632.28979379)
 cx = float(307.50223257)
@@ -53,28 +53,38 @@ class TagLocalizer(Node):
 
                 # Set Header data
                 t.header.stamp = self.get_clock().now().to_msg()
-                t.header.frame_id = 'world'
+                t.header.frame_id = 'tag_2'
                 t.child_frame_id = "bender_cam"
 
-                # TODO: We care about rotation... but start with pose
-                # TODO: I think this is wrong - tf2 is built to solve the problem of translating frames, maybe we need to rotate frame somehow?
-                t.transform.translation.x = float(d.pose_t[0]) # Camera x is world x - leave as is
-                t.transform.translation.y = float(d.pose_t[2]) # Camera z is wold y
-                t.transform.translation.z = float(d.pose_t[1]) # Camera y is world z
+                # Solve for the camera's position in tag space
+                # (-t)
+                cam_pos = np.array([-float(d.pose_t[0]), -float(d.pose_t[1]), -float(d.pose_t[2])])
+
+                # (R^(-1))
+                cam_rot = d.pose_R.T
+
+                # (-t)*(R^(-1)) where R is rotation matrix, and t is 
+                #   translation to tag center
+                cam_pos = cam_rot @ cam_pos
+
+                t.transform.translation.x = float(cam_pos[0])
+                t.transform.translation.y = float(cam_pos[1])
+                t.transform.translation.z = float(cam_pos[2])
                 rclpy.logging.get_logger("bender_tf2").debug(F"Publishing pose [{t.transform.translation.x}, {t.transform.translation.y}, {t.transform.translation.z}]")
                 rclpy.logging.get_logger("bender_tf2").debug(F"Rotation matrix: [{d.pose_R}]")
 
-                quat = rotation_matrix_to_quaternion(d.pose_R)
+                quat = rotation_matrix_to_quaternion(cam_rot)
+                
                 t.transform.rotation.w = float(quat[0])
                 t.transform.rotation.x = float(quat[1])
-                t.transform.rotation.z = float(quat[2])
-                t.transform.rotation.y = float(quat[3])
+                t.transform.rotation.y = float(quat[2])
+                t.transform.rotation.z = float(quat[3])
 
                 # Send the transform
                 self.tf_broadcaster.sendTransform(t)
 
-            # Put 10ms between detection cycles
-            time.sleep(0.01)
+            # Put 50ms between detection cycles
+            time.sleep(0.05)
             pass
     
     def publish_pose(self):

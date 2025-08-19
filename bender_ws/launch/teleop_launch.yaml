@@ -4,17 +4,21 @@ launch:
   - node:
       pkg: "tf2_ros"
       exec: "static_transform_publisher"
-      args: "--x 0 --y 0.72 --z -0.32 --yaw 0 --pitch 0 --roll 0 --frame-id bender_cam --child-frame-id bender"
+      args: "--x 0 --y 0 --z 0.603 --yaw -1.5708 --pitch 0 --roll -1.5708 --frame-id world --child-frame-id tag_2"
+  - node:
+      pkg: "tf2_ros"
+      exec: "static_transform_publisher"
+      args: "--x 0 --y 0.32 --z -0.72 --yaw -1.5708 --pitch 0 --roll 1.5708 --frame-id bender_cam --child-frame-id bender"
   - node:
       pkg: "bender_tf2"
       exec: "bender_tag_localizer"
       name: "bender_tag_localization"
-  - node:
-      pkg: "drivetrain"
-      exec: "drivetrain_sub"
-      name: "drivetrain"
+#   - node:
+#       pkg: "drivetrain"
+#       exec: "drivetrain_sub"
+#       name: "drivetrain"
 
-  - node:
-      pkg: "bender_input"
-      exec: "bender_teleop"
-      name: "bender_teleop"
+#   - node:
+#       pkg: "bender_input"
+#       exec: "bender_teleop"
+#       name: "bender_teleop"

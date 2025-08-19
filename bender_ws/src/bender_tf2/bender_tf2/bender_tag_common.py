@@ -38,4 +38,5 @@ def rotation_matrix_to_quaternion(R):
         y = (m12 + m21) / S
         z = 0.25 * S
 
-    return np.array([w, x, y, z])
+    q = np.array([w, x, y, z])
+    return q / np.linalg.norm(q)
