@@ -1,0 +1,3 @@
+[submodule "bender-drive/pico-mcp2515"]
+	path = bender-drive/pico-mcp2515
+	url = https://github.com/adamczykpiotr/pico-mcp2515.git

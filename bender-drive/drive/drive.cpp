@@ -1,6 +1,8 @@
 #include "drive.h"
 #include "settings.h"
 
+#include "mcp2515/mcp2515.h"
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -10,6 +12,8 @@
 
 uint8_t s_uartRx[DRIVE_BUF_LEN_RX] = {0};
 size_t s_rxPtr = 0;
+
+MCP2515 mcp2515 = MCP2515();
 
 // ========= Private Definitions =========
 

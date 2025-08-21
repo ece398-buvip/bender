@@ -35,7 +35,10 @@ pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(bender-drive bender-drive.cpp drive/drive.cpp)
+add_executable(bender-drive bender-drive.cpp drive/drive.cpp pico-mcp2515/include/mcp2515/mcp2515.cpp)
+
+# Add MCP2515 library
+target_include_directories(bender-drive PUBLIC pico-mcp2515/include)
 
 pico_set_program_name(bender-drive "bender-drive")
 pico_set_program_version(bender-drive "0.1")
@@ -49,7 +52,8 @@ pico_enable_stdio_uart(bender-drive 0)
 # Add the standard library to the build
 target_link_libraries(bender-drive
         pico_stdlib
-        hardware_pwm)
+        hardware_pwm
+        hardware_spi)
 
 # Add the standard include files to the build
 target_include_directories(bender-drive PRIVATE
