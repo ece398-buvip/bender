@@ -9,7 +9,7 @@ from geometry_msgs.msg import TransformStamped, Quaternion
 from tf2_ros import TransformBroadcaster
 
 # Camera parameters - TODO: Move to a config file
-cam_index = 4
+cam_index = 0
 fx = float(636.56831794)
 fy = float(632.28979379)
 cx = float(307.50223257)

@@ -35,7 +35,7 @@ pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(bender-drive bender-drive.c drive/drive.c)
+add_executable(bender-drive bender-drive.cpp drive/drive.cpp)
 
 pico_set_program_name(bender-drive "bender-drive")
 pico_set_program_version(bender-drive "0.1")

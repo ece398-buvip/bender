@@ -13,12 +13,11 @@ launch:
       pkg: "bender_tf2"
       exec: "bender_tag_localizer"
       name: "bender_tag_localization"
-#   - node:
-#       pkg: "drivetrain"
-#       exec: "drivetrain_sub"
-#       name: "drivetrain"
-
-#   - node:
-#       pkg: "bender_input"
-#       exec: "bender_teleop"
-#       name: "bender_teleop"
+  - node:
+      pkg: "drivetrain"
+      exec: "drivetrain_sub"
+      name: "drivetrain"
+  - node:
+      pkg: "bender_input"
+      exec: "bender_teleop"
+      name: "bender_teleop"
