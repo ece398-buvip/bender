@@ -26,11 +26,12 @@ typedef enum
    DRIVE_ST_ERROR,
 } drive_state_t;
 
-typedef drive_err_t (*drive_init_cb_t)();
-typedef drive_err_t (*drive_set_pwm_cb_t)(int16_t leftPwm, int16_t rightPwm);
-typedef drive_err_t (*drive_set_stat_led_cb_t)(uint8_t stat);
-typedef uint32_t (*drive_get_time_ms_cb_t)();
-typedef int (*drive_uart_get_c_cb_t)();
+typedef drive_err_t (*drive_init_fn)();
+typedef drive_err_t (*drive_set_pwm_fn)(int16_t leftPwm, int16_t rightPwm);
+typedef drive_err_t (*drive_set_stat_led_fn)(uint8_t stat);
+typedef uint32_t (*drive_get_time_ms_fn)();
+typedef int (*drive_uart_get_c_fn)();
+typedef drive_err_t (*drive_can_tx_fn)(uint8_t data, uint8_t len);
 
 typedef struct
 {
@@ -38,11 +39,12 @@ typedef struct
    uint32_t lastBlink_ms;
    uint32_t lastHeartBeat_ms;
 
-   drive_init_cb_t cbInit;
-   drive_set_pwm_cb_t cbSetPwm;
-   drive_set_stat_led_cb_t cbSetLed;
-   drive_get_time_ms_cb_t cbGetTimeMs;
-   drive_uart_get_c_cb_t cbUartGetC;
+   drive_init_fn cbInit;
+   drive_set_pwm_fn cbSetPwm;
+   drive_set_stat_led_fn cbSetLed;
+   drive_get_time_ms_fn cbGetTimeMs;
+   drive_uart_get_c_fn cbUartGetC;
+   drive_can_tx_fn cbCanTx;
 } drive_t;
 
 drive_err_t DriveFSM(drive_t *pHandle);

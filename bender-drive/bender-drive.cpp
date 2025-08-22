@@ -4,6 +4,8 @@
 #include "hardware/pwm.h"
 #include "hardware/watchdog.h"
 
+#include "mcp2515/mcp2515.h"
+
 #include "drive/drive.h"
 #include "settings.h"
 
@@ -14,12 +16,20 @@ static int hal_uart_get_c(); // Blocks until a character is read
 static drive_err_t hal_set_pwm(int16_t left, int16_t right);
 static drive_err_t hal_set_stat_led(uint8_t stat);
 static uint32_t hal_get_time_ms();
+static drive_err_t hal_can_tx(uint8_t data, uint8_t len);
 
 // ========= Private Variables =========
 
 static drive_t s_benderDrive = {};
 static uint s_pwmLeftSlice = 0;
 static uint s_pwmRightSlice = 0;
+// By default, the constructor uses the default pico SPI pins
+static MCP2515 s_can = MCP2515(spi0,
+                               20,
+                               PICO_DEFAULT_SPI_TX_PIN,
+                               PICO_DEFAULT_SPI_RX_PIN,
+                               PICO_DEFAULT_SPI_SCK_PIN,
+                               1000000);
 
 // ========= Entry Point / Main =========
 
@@ -28,7 +38,65 @@ main()
 {
    stdio_init_all();
 
-   // Wait 2 seconds to start up - prevents initializing UART 
+   // TODO: DEBUGGING
+   static const can_frame canFrame = {
+       .can_id = 0x10000000, // Example CAN ID
+       .can_dlc = 8,
+       .data = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08},
+   };
+
+   uint8_t config = 0;
+   uint8_t failed = 0;
+
+   while (!config)
+   {
+      failed = 0;
+
+      printf("Trying to start CAN interface...\n");
+
+      // Initialize CAN
+      if (s_can.reset() != MCP2515::ERROR::ERROR_OK)
+      {
+         printf("Failed to reset CAN\n");
+         failed |= 1;
+      }
+      if (s_can.setBitrate(CAN_10KBPS, MCP_16MHZ) != MCP2515::ERROR::ERROR_OK)
+      {
+         printf("Failed to set CAN bitrate\n");
+         failed |= 1;
+      }
+      if (s_can.setNormalMode() != MCP2515::ERROR::ERROR_OK)
+      {
+         printf("Failed to set CAN to normal mode\n");
+         failed |= 1;
+      }
+
+      if (failed == 0)
+      {
+         config = 1;
+      }
+      
+      sleep_ms(1000);
+   }
+
+   while (1)
+   {
+      MCP2515::ERROR err;
+
+      if ((err = s_can.sendMessage(&canFrame)) != MCP2515::ERROR::ERROR_OK)
+      {
+         printf("Failed to send CAN message. Error=[%d]\n", err);
+      }
+      else
+      {
+         printf("CAN message sent successfully\n");
+      }
+
+      sleep_ms(1000);
+   }
+   // END DEBUGGING
+
+   // Wait 2 seconds to start up - prevents initializing UART
    //   interface and making Pi think there's a console to boot to
    sleep_ms(2000);
 
@@ -38,6 +106,7 @@ main()
    s_benderDrive.cbGetTimeMs = hal_get_time_ms;
    s_benderDrive.cbUartGetC = hal_uart_get_c;
    s_benderDrive.lastHeartBeat_ms = 0;
+   s_benderDrive.cbCanTx = hal_can_tx;
 
    while (1)
    {
@@ -98,6 +167,11 @@ hal_init()
    gpio_set_function(DRIVE_UART_TX, UART_FUNCSEL_NUM(DRIVE_UART_ID, DRIVE_UART_TX));
    gpio_set_function(DRIVE_UART_RX, UART_FUNCSEL_NUM(DRIVE_UART_ID, DRIVE_UART_RX));
 
+   // Initialize CAN
+   s_can.reset();
+   s_can.setBitrate(CAN_10KBPS, MCP_16MHZ);
+   s_can.setNormalMode();
+
    return DRIVE_OK;
 }
 
@@ -108,7 +182,7 @@ hal_set_pwm(int16_t left, int16_t right)
    printf("L: [%d] R: [%d]\n", left, right);
    // END
 
-   if (left < 0 )
+   if (left < 0)
    {
       pwm_set_chan_level(s_pwmLeftSlice, PWM_CHAN_A, 0);
       pwm_set_chan_level(s_pwmLeftSlice, PWM_CHAN_B, (uint16_t)(left * -1));
@@ -148,7 +222,8 @@ hal_get_time_ms()
    return to_ms_since_boot(get_absolute_time());
 }
 
-int hal_uart_get_c()
+int
+hal_uart_get_c()
 {
    // int rx = stdio_getchar_timeout_us(0);
    // if (rx == PICO_ERROR_TIMEOUT)
@@ -160,7 +235,37 @@ int hal_uart_get_c()
    {
       return -1;
    }
-   
 
    return uart_getc(DRIVE_UART_ID);
+}
+
+drive_err_t
+hal_can_tx(uint8_t data, uint8_t len)
+{
+   if (len == 0)
+   {
+      return DRIVE_ERR_NULLPTR;
+   }
+
+   can_frame demo_frame = {
+       .can_id = 0x1234ABCD,
+       .can_dlc = len,
+       .data = data,
+   };
+
+   // Write the sample message
+   if (s_can.sendMessage(&demo_frame) != MCP2515::ERROR::ERROR_OK)
+   {
+      printf("Failed to send message\n");
+      return DRIVE_ERR;
+   }
+   else
+   {
+      printf("Transmitted\n");
+   }
+
+   // Force a sleep here
+   sleep_ms(100);
+
+   return DRIVE_OK;
 }

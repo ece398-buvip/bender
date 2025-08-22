@@ -1,8 +1,6 @@
 #include "drive.h"
 #include "settings.h"
 
-#include "mcp2515/mcp2515.h"
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -12,8 +10,6 @@
 
 uint8_t s_uartRx[DRIVE_BUF_LEN_RX] = {0};
 size_t s_rxPtr = 0;
-
-MCP2515 mcp2515 = MCP2515();
 
 // ========= Private Definitions =========
 
@@ -81,6 +77,7 @@ null_check(drive_t *pHandle)
    DRIVE_RET_IF_NULL(pHandle->cbSetLed);
    DRIVE_RET_IF_NULL(pHandle->cbGetTimeMs);
    DRIVE_RET_IF_NULL(pHandle->cbUartGetC);
+   DRIVE_RET_IF_NULL(pHandle->cbCanTx);
 
    return DRIVE_OK;
 }
@@ -100,6 +97,12 @@ boot_task(drive_t *pHandle)
 void
 run_task(drive_t *pHandle)
 {
+
+   // TODO: Debugging - test CAN
+   pHandle->cbCanTx(0x12, 1);
+   return;
+   // END
+
    int16_t lpwm = 0;
    int16_t rpwm = 0;
    uint8_t rx = 0;
@@ -301,7 +304,7 @@ check_heartbeat(drive_t *pHandle)
       return 0;
    }
 
-   // TODO: DEBUGGING 
+   // TODO: DEBUGGING
    // disable for now
    // if (pHandle->lastHeartBeat_ms == 0)
    // {
